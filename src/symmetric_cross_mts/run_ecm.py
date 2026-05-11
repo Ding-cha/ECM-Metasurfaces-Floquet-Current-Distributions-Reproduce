@@ -95,6 +95,7 @@ def main():
             ttr_variant="polarized",
             kz_branch="decay",
             high_order_substrate=False,
+            width_profile="cosine",
         )
         s11, s21 = sweep(freq_ghz, params, cfg)
         title = "Restored ECM candidate"

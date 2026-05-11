@@ -29,6 +29,7 @@ class EcmConfig:
     ttr_variant: str = "paper"
     kz_branch: str = "principal"
     high_order_substrate: bool = True
+    width_profile: str = "uniform"
 
 
 def _sqrt_branch(value: complex, branch: str = "principal") -> complex:
@@ -69,6 +70,53 @@ def _loaded_admittance(y_plus: complex, y_minus: complex, kz_diel: complex, h_m:
     tan_term = np.tan(kz_diel * h_m)
     z_in = zc * (z_load + 1j * zc * tan_term) / (zc + 1j * z_load * tan_term)
     return 1.0 / z_in
+
+
+def _width_integral(k: complex, half_width_m: float, profile: str) -> complex:
+    """金属条宽度方向的积分。
+
+    uniform 是旧 restored 的假设；cosine 用一个中心强、边缘弱的横向电流
+    profile 来近似宽度方向电流变化。Fig. 22 宽度扫描显示，这个修正能把
+    高频反射谷拉回到更接近作者结果的位置。
+    """
+
+    if profile == "uniform":
+        if abs(k) < 1e-14:
+            return 2.0 * half_width_m
+        return 2.0 * np.sin(k * half_width_m) / k
+    if profile != "cosine":
+        raise ValueError(f"Unknown width profile: {profile}")
+
+    u = np.linspace(-half_width_m, half_width_m, 241)
+    weight = 0.5 + 0.5 * np.cos(np.pi * u / half_width_m)
+    weight = weight * (2.0 * half_width_m / np.trapz(weight, u))
+    return complex(np.trapz(weight * np.exp(1j * k * u), u))
+
+
+def _current_fourier_for_cfg(
+    kx: complex,
+    ky: complex,
+    params: SymmetricCrossParams,
+    cfg: EcmConfig,
+) -> tuple[complex, complex]:
+    if cfg.width_profile == "uniform":
+        return current_fourier(kx, ky, params, cfg.fourier_samples)
+
+    x_mm = np.linspace(-params.lx_mm / 2.0, params.lx_mm / 2.0, cfg.fourier_samples)
+    x_m = x_mm * 1e-3
+    y_mm = np.linspace(-params.ly_mm / 2.0, params.ly_mm / 2.0, cfg.fourier_samples)
+    y_m = y_mm * 1e-3
+
+    from .model import horizontal_current_x, vertical_current_y
+
+    ix = horizontal_current_x(x_mm)
+    iy = vertical_current_y(y_mm, params)
+    trapz = getattr(np, "trapezoid", np.trapz)
+    jx = trapz(ix * np.exp(1j * kx * x_m), x_m) * _width_integral(ky, params.w_m / 2.0, cfg.width_profile)
+    jy = _width_integral(kx, params.w_m / 2.0, cfg.width_profile) * trapz(
+        iy * np.exp(1j * ky * y_m), y_m
+    )
+    return jx / (4.0 * np.pi**2), jy / (4.0 * np.pi**2)
 
 
 def _turn_ratios(
@@ -135,7 +183,7 @@ def solve_frequency(freq_hz: float, params: SymmetricCrossParams, cfg: EcmConfig
                 b_tm = y_tm_p
             y_te = y_te_p + b_te
             y_tm = y_tm_p + b_tm
-            jx, jy = current_fourier(kx, ky, params, cfg.fourier_samples)
+            jx, jy = _current_fourier_for_cfg(kx, ky, params, cfg)
             t_te, t_tm = _turn_ratios(kx, ky, jx, jy, params, cfg)
 
             if m == 0 and n == 0:

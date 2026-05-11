@@ -16,7 +16,16 @@ WIDTHS_MM = (3.0, 5.0, 7.0)
 FREQ_GHZ = np.linspace(3.0, 9.0, 301)
 
 
-RESTORED_CFG = EcmConfig(
+RESTORED_WIDTH_CORRECTED_CFG = EcmConfig(
+    mode_order=9,
+    fourier_samples=501,
+    ttr_variant="polarized",
+    kz_branch="decay",
+    high_order_substrate=False,
+    width_profile="cosine",
+)
+
+RESTORED_UNIFORM_CFG = EcmConfig(
     mode_order=9,
     fourier_samples=501,
     ttr_variant="polarized",
@@ -70,7 +79,8 @@ def _write_summary(output_dir: Path, rows: list[dict[str, float | str]]) -> None
 def _plot(output_dir: Path, curves: dict[tuple[str, float], np.ndarray]) -> None:
     fig, axes = plt.subplots(1, 3, figsize=(12, 3.6), sharey=True, constrained_layout=True)
     for ax, width_mm in zip(axes, WIDTHS_MM):
-        ax.plot(FREQ_GHZ, curves[("restored", width_mm)], label="restored", linewidth=2.0)
+        ax.plot(FREQ_GHZ, curves[("restored-width-corrected", width_mm)], label="restored width-corrected", linewidth=2.0)
+        ax.plot(FREQ_GHZ, curves[("restored-uniform", width_mm)], "--", label="restored uniform", linewidth=1.4)
         ax.plot(FREQ_GHZ, curves[("raw", width_mm)], "--", label="raw", linewidth=1.4)
         ax.set_title(f"w = {width_mm:g} mm")
         ax.set_xlabel("Freq (GHz)")
@@ -89,7 +99,11 @@ def main() -> None:
     rows: list[dict[str, float | str]] = []
 
     for width_mm in WIDTHS_MM:
-        for mode, cfg in (("restored", RESTORED_CFG), ("raw", RAW_CFG)):
+        for mode, cfg in (
+            ("restored-width-corrected", RESTORED_WIDTH_CORRECTED_CFG),
+            ("restored-uniform", RESTORED_UNIFORM_CFG),
+            ("raw", RAW_CFG),
+        ):
             s11, s11_db = _run_case(width_mm, cfg)
             curves[(mode, width_mm)] = s11_db
             metric = _metrics(FREQ_GHZ, s11)

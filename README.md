@@ -71,6 +71,7 @@ By default this writes the current restored ECM candidate. This candidate uses:
 TTR variant: TE/TM unit-polarization projection
 evanescent branch: decaying branch
 high-order substrate loading: disabled for evanescent modal sum
+width profile: cosine correction
 mode order: 9
 ```
 
