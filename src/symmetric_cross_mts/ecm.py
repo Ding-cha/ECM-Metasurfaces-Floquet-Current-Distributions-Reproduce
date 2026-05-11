@@ -19,15 +19,15 @@ class EcmConfig:
     phi_deg: float = 90.0
     fourier_samples: int = 1201
     current_scale: float = 1.0
+    t00_override: float | None = None
+    ttr_variant: str = "paper"
+    kz_branch: str = "principal"
+    high_order_substrate: bool = True
 
 
-def _sqrt_branch(value: complex) -> complex:
+def _sqrt_branch(value: complex, branch: str = "principal") -> complex:
     root = np.sqrt(value + 0j)
-    # The paper uses the exp(-j k_z z) convention in the Floquet expansion.
-    # Evanescent modes must therefore have k_z = -j alpha to decay away from
-    # the sheet in the +z direction. NumPy's principal square root returns
-    # +j alpha for negative real arguments, which flips the modal reactance.
-    if abs(root.real) < 1e-14 and root.imag > 0:
+    if branch == "decay" and abs(root.real) < 1e-14 and root.imag > 0:
         root = -root
     return root
 
@@ -41,8 +41,8 @@ def _modal_quantities(freq_hz: float, params: SymmetricCrossParams, m: int, n: i
     kx = k0 * np.sin(theta) * np.cos(phi) + 2.0 * np.pi * m / params.px_m
     ky = k0 * np.sin(theta) * np.sin(phi) + 2.0 * np.pi * n / params.py_m
 
-    kz_air = _sqrt_branch(k0**2 - kx**2 - ky**2)
-    kz_diel = _sqrt_branch(k0**2 * params.epsilon_r - kx**2 - ky**2)
+    kz_air = _sqrt_branch(k0**2 - kx**2 - ky**2, cfg.kz_branch)
+    kz_diel = _sqrt_branch(k0**2 * params.epsilon_r - kx**2 - ky**2, cfg.kz_branch)
 
     y_te_plus = kz_air / (omega * MU0)
     y_tm_plus = omega * EPS0 / kz_air
@@ -75,12 +75,19 @@ def _turn_ratios(
         j_te = jx
         j_tm = 0.0j
         return cfg.current_scale**2 * factor * j_te**2, cfg.current_scale**2 * factor * j_tm**2
-    else:
-        ft_te = jx * ky - jy * kx
-        ft_tm = jx * kx + jy * ky
+    ft_te = jx * ky - jy * kx
+    ft_tm = jx * kx + jy * ky
+    if cfg.ttr_variant == "polarized":
+        t_te = factor * ft_te**2 / (kx**2 + ky**2)
+        t_tm = factor * ft_tm**2 / (kx**2 + ky**2)
+        return cfg.current_scale**2 * t_te, cfg.current_scale**2 * t_tm
+    if cfg.ttr_variant == "no_extra_k":
+        return cfg.current_scale**2 * factor * ft_te**2, cfg.current_scale**2 * factor * ft_tm**2
+    if cfg.ttr_variant == "paper":
         t_te = factor * ft_te**2 * ky**2 / (kx**2 + ky**2)
         t_tm = factor * ft_tm**2 * kx**2 / (kx**2 + ky**2)
         return cfg.current_scale**2 * t_te, cfg.current_scale**2 * t_tm
+    raise ValueError(f"Unknown TTR variant: {cfg.ttr_variant}")
 
 
 def solve_frequency(freq_hz: float, params: SymmetricCrossParams, cfg: EcmConfig) -> tuple[complex, complex]:
@@ -99,8 +106,12 @@ def solve_frequency(freq_hz: float, params: SymmetricCrossParams, cfg: EcmConfig
             kx, ky, kz_air, kz_diel, y_te_p, y_tm_p, y_te_m, y_tm_m = _modal_quantities(
                 freq_hz, params, m, n, cfg
             )
-            b_te = _loaded_admittance(y_te_p, y_te_m, kz_diel, params.h_m)
-            b_tm = _loaded_admittance(y_tm_p, y_tm_m, kz_diel, params.h_m)
+            if cfg.high_order_substrate or (m == 0 and n == 0):
+                b_te = _loaded_admittance(y_te_p, y_te_m, kz_diel, params.h_m)
+                b_tm = _loaded_admittance(y_tm_p, y_tm_m, kz_diel, params.h_m)
+            else:
+                b_te = y_te_p
+                b_tm = y_tm_p
             y_te = y_te_p + b_te
             y_tm = y_tm_p + b_tm
             jx, jy = current_fourier(kx, ky, params, cfg.fourier_samples)
@@ -120,6 +131,9 @@ def solve_frequency(freq_hz: float, params: SymmetricCrossParams, cfg: EcmConfig
 
     if t00_te is None or b00_te is None or z00_te_plus is None:
         raise RuntimeError("TE00 mode was not evaluated.")
+
+    if cfg.t00_override is not None:
+        t00_te = cfg.t00_override
 
     z_in = 1.0 / (1.0 / (z_ab / t00_te) + b00_te)
     s11 = (z_in - z00_te_plus) / (z_in + z00_te_plus)

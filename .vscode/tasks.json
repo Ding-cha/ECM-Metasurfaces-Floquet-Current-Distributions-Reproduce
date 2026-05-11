@@ -16,9 +16,23 @@
       "problemMatcher": []
     },
     {
-      "label": "Run ECM sweep",
+      "label": "Run restored ECM candidate",
       "type": "shell",
-      "command": "$env:PYTHONPATH='${workspaceFolder}\\src'; D:\\anaconda3\\python.exe -m symmetric_cross_mts.run_ecm",
+      "command": "$env:PYTHONPATH='${workspaceFolder}\\src'; D:\\anaconda3\\python.exe -m symmetric_cross_mts.run_ecm --anchors",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Fig. 15 calibrated ECM",
+      "type": "shell",
+      "command": "$env:PYTHONPATH='${workspaceFolder}\\src'; D:\\anaconda3\\python.exe -m symmetric_cross_mts.run_ecm --mode calibrated --anchors",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run raw analytical ECM",
+      "type": "shell",
+      "command": "$env:PYTHONPATH='${workspaceFolder}\\src'; D:\\anaconda3\\python.exe -m symmetric_cross_mts.run_ecm --mode raw",
       "group": "test",
       "problemMatcher": []
     },

@@ -65,6 +65,37 @@ Run the ECM frequency sweep:
 python -m symmetric_cross_mts.run_ecm
 ```
 
+By default this writes the current restored ECM candidate. This candidate uses:
+
+```text
+TTR variant: TE/TM unit-polarization projection
+evanescent branch: decaying branch
+high-order substrate loading: disabled for evanescent modal sum
+mode order: 9
+```
+
+This is the closest fully analytical reconstruction found so far. It naturally
+reproduces the main Fig. 15 features: the reflection peak / transmission null
+near 5.8 GHz and the reflection minimum near 8 GHz.
+
+To overlay the digitized anchors:
+
+```powershell
+python -m symmetric_cross_mts.run_ecm --anchors
+```
+
+To run the hand-digitized Fig. 15 calibration:
+
+```powershell
+python -m symmetric_cross_mts.run_ecm --mode calibrated --anchors
+```
+
+To run the raw analytical ECM implementation:
+
+```powershell
+python -m symmetric_cross_mts.run_ecm --mode raw
+```
+
 Diagnose why the current analytical implementation does not yet match the
 published Fig. 15 curve:
 

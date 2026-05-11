@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import argparse
 import csv
 
 import matplotlib.pyplot as plt
 import numpy as np
 
+from .calibrated import calibrated_sweep, target_anchor_data
 from .ecm import EcmConfig, sweep
 from .model import SymmetricCrossParams, ensure_output_dir
 
@@ -25,16 +27,26 @@ def write_csv(path, freq_ghz, s11, s21):
             writer.writerow([f"{item:.8g}" for item in row])
 
 
-def plot_sparameters(output_dir, freq_ghz, s11, s21):
+def plot_sparameters(output_dir, freq_ghz, s11, s21, *, show_anchors: bool = False, title_suffix: str = ""):
     fig, axes = plt.subplots(2, 1, figsize=(8, 7), sharex=True, constrained_layout=True)
     axes[0].plot(freq_ghz, db(s11), label="$S_{11}$ ECM")
     axes[0].plot(freq_ghz, db(s21), label="$S_{21}$ ECM")
+    if show_anchors:
+        anchors = target_anchor_data()
+        axes[0].scatter(*anchors["s11_db"], marker="o", s=18, label="$S_{11}$ Fig. 15 anchors")
+        axes[0].scatter(*anchors["s21_db"], marker="s", s=18, label="$S_{21}$ Fig. 15 anchors")
+    if title_suffix:
+        axes[0].set_title(title_suffix)
     axes[0].set_ylabel("Magnitude (dB)")
     axes[0].grid(True, alpha=0.25)
     axes[0].legend()
 
     axes[1].plot(freq_ghz, phase_deg(s11), label="$S_{11}$ ECM")
     axes[1].plot(freq_ghz, phase_deg(s21), label="$S_{21}$ ECM")
+    if show_anchors:
+        anchors = target_anchor_data()
+        axes[1].scatter(*anchors["s11_phase_deg"], marker="o", s=18, label="$S_{11}$ Fig. 15 anchors")
+        axes[1].scatter(*anchors["s21_phase_deg"], marker="s", s=18, label="$S_{21}$ Fig. 15 anchors")
     axes[1].set_xlabel("Frequency (GHz)")
     axes[1].set_ylabel("Phase (deg)")
     axes[1].grid(True, alpha=0.25)
@@ -44,14 +56,48 @@ def plot_sparameters(output_dir, freq_ghz, s11, s21):
 
 
 def main():
-    params = SymmetricCrossParams()
-    cfg = EcmConfig(mode_order=7, fourier_samples=1201)
-    freq_ghz = np.linspace(3.0, 9.0, 121)
-    s11, s21 = sweep(freq_ghz, params, cfg)
+    parser = argparse.ArgumentParser(description="Run the symmetric-cross MTS sweep.")
+    parser.add_argument(
+        "--mode",
+        choices=["restored", "calibrated", "raw"],
+        default="restored",
+        help="Select restored analytical candidate, Fig. 15 calibration, or original raw ECM.",
+    )
+    parser.add_argument("--raw", action="store_true", help="Compatibility alias for --mode raw.")
+    parser.add_argument("--calibrated", action="store_true", help="Compatibility alias for --mode calibrated.")
+    parser.add_argument("--anchors", action="store_true", help="Overlay the hand-digitized Fig. 15 anchor points.")
+    args = parser.parse_args()
+
+    mode = args.mode
+    if args.raw:
+        mode = "raw"
+    if args.calibrated:
+        mode = "calibrated"
+
+    freq_ghz = np.linspace(3.0, 9.0, 601)
+    if mode == "raw":
+        params = SymmetricCrossParams()
+        cfg = EcmConfig(mode_order=7, fourier_samples=1201)
+        s11, s21 = sweep(freq_ghz, params, cfg)
+        title = "Raw analytical ECM"
+    elif mode == "calibrated":
+        s11, s21 = calibrated_sweep(freq_ghz)
+        title = "Fig. 15-calibrated reproduction"
+    else:
+        params = SymmetricCrossParams()
+        cfg = EcmConfig(
+            mode_order=9,
+            fourier_samples=501,
+            ttr_variant="polarized",
+            kz_branch="decay",
+            high_order_substrate=False,
+        )
+        s11, s21 = sweep(freq_ghz, params, cfg)
+        title = "Restored ECM candidate"
 
     output_dir = ensure_output_dir()
     write_csv(output_dir / "s_parameters.csv", freq_ghz, s11, s21)
-    plot_sparameters(output_dir, freq_ghz, s11, s21)
+    plot_sparameters(output_dir, freq_ghz, s11, s21, show_anchors=args.anchors, title_suffix=title)
     print(f"Wrote ECM outputs to {output_dir.resolve()}")
 
 

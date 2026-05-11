@@ -13,10 +13,35 @@
       }
     },
     {
-      "name": "Run symmetric cross ECM",
+      "name": "Run restored ECM candidate",
       "type": "python",
       "request": "launch",
       "module": "symmetric_cross_mts.run_ecm",
+      "args": ["--anchors"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}\\src"
+      }
+    },
+    {
+      "name": "Run Fig. 15 calibrated ECM",
+      "type": "python",
+      "request": "launch",
+      "module": "symmetric_cross_mts.run_ecm",
+      "args": ["--mode", "calibrated", "--anchors"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}\\src"
+      }
+    },
+    {
+      "name": "Run raw analytical ECM",
+      "type": "python",
+      "request": "launch",
+      "module": "symmetric_cross_mts.run_ecm",
+      "args": ["--mode", "raw"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "env": {
