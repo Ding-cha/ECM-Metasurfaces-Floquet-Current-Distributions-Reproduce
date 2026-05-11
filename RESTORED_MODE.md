@@ -23,7 +23,45 @@ set PYTHONPATH=src && D:\anaconda3\python.exe -m symmetric_cross_mts.run_ecm --a
 ```text
 outputs/s_parameters.png
 outputs/s_parameters.csv
+outputs/run_config.json
 ```
+
+## 通用参数输入
+
+当前分支已经把 restored 模式改成通用 symmetric-cross 单元求解入口。默认仍使用论文 Fig. 13 / Table II 参数；如果需要计算任意一组结构参数，可以直接在命令行输入：
+
+```cmd
+set PYTHONPATH=src && D:\anaconda3\python.exe -m symmetric_cross_mts.run_ecm --mode restored --lx-mm 24 --ly-mm 18 --w-mm 4 --px-mm 34 --py-mm 30 --h-mm 1.0 --epsilon-r 2.5 --freq-start-ghz 4 --freq-stop-ghz 10
+```
+
+也可以使用 JSON 文件：
+
+```cmd
+set PYTHONPATH=src && D:\anaconda3\python.exe -m symmetric_cross_mts.run_ecm --mode restored --params-json examples\symmetric_cross_case.json
+```
+
+JSON 可以只写几何参数，也可以使用 `run_config.json` 这种包含 `geometry` 字段的文件。支持的参数名包括：
+
+```text
+lx_mm / l_x / lx
+ly_mm / l_y / ly
+w_mm / width / w
+px_mm / p_x / px
+py_mm / p_y / py
+h_mm / h
+epsilon_r / eps_r
+```
+
+程序会检查基本几何约束：
+
+```text
+所有参数必须为正数
+l_x <= P_x
+l_y <= P_y
+w <= min(l_x, l_y)
+```
+
+如果同时给出 JSON 和命令行参数，命令行参数优先。
 
 ## 几何参数
 
@@ -62,6 +100,15 @@ I_2y(y) = 0.5 I_1x(0) |(|y| - L_y/2) / (L_y/2)|
 ```
 
 当前代码中垂直电流带有上下方向符号，用于模拟 Fig. 14 中上下臂电流方向相反的情况。
+
+对非 `l_x = 20 mm` 的通用几何，代码把水平臂坐标映射到归一化坐标：
+
+```text
+x_ref = x * 20 mm / l_x
+I_1x(x; l_x) = 0.95 cos(0.12 x_ref) - 0.2 cos(0.64 x_ref)
+```
+
+这个处理保留了论文给出的电流形状，但把电流峰谷位置按实际臂长缩放。它是通用化求解的关键假设之一，因为论文只公开了 `l_x = 20 mm` 情况下的电流拟合式。
 
 对应代码：
 

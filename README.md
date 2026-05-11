@@ -53,16 +53,24 @@ scripts. They set `PYTHONPATH=src`, so editable installation is optional.
 
 ## Run
 
+From a normal PowerShell terminal in this repository, prefix commands with:
+
+```powershell
+$env:PYTHONPATH='src';
+```
+
+For example:
+
 Create the geometry and current plots:
 
 ```powershell
-python -m symmetric_cross_mts.plot_current
+$env:PYTHONPATH='src'; python -m symmetric_cross_mts.plot_current
 ```
 
 Run the ECM frequency sweep:
 
 ```powershell
-python -m symmetric_cross_mts.run_ecm
+$env:PYTHONPATH='src'; python -m symmetric_cross_mts.run_ecm
 ```
 
 By default this writes the current restored ECM candidate. This candidate uses:
@@ -82,25 +90,47 @@ near 5.8 GHz and the reflection minimum near 8 GHz.
 To overlay the digitized anchors:
 
 ```powershell
-python -m symmetric_cross_mts.run_ecm --anchors
+$env:PYTHONPATH='src'; python -m symmetric_cross_mts.run_ecm --anchors
+```
+
+Run an arbitrary symmetric-cross geometry by passing dimensions in mm:
+
+```powershell
+$env:PYTHONPATH='src'; python -m symmetric_cross_mts.run_ecm --mode restored --lx-mm 24 --ly-mm 18 --w-mm 4 --px-mm 34 --py-mm 30 --h-mm 1.0 --epsilon-r 2.5 --freq-start-ghz 4 --freq-stop-ghz 10
+```
+
+Or read the geometry from JSON:
+
+```powershell
+$env:PYTHONPATH='src'; python -m symmetric_cross_mts.run_ecm --mode restored --params-json examples\symmetric_cross_case.json
+```
+
+The JSON file may use either the code names (`lx_mm`, `py_mm`, `epsilon_r`) or
+short paper-style aliases (`l_x`, `p_y`, `eps_r`). CLI geometry values override
+the JSON file. Each run writes both the response and the resolved configuration:
+
+```text
+outputs/s_parameters.png
+outputs/s_parameters.csv
+outputs/run_config.json
 ```
 
 To run the hand-digitized Fig. 15 calibration:
 
 ```powershell
-python -m symmetric_cross_mts.run_ecm --mode calibrated --anchors
+$env:PYTHONPATH='src'; python -m symmetric_cross_mts.run_ecm --mode calibrated --anchors
 ```
 
 To run the raw analytical ECM implementation:
 
 ```powershell
-python -m symmetric_cross_mts.run_ecm --mode raw
+$env:PYTHONPATH='src'; python -m symmetric_cross_mts.run_ecm --mode raw
 ```
 
 Validate the Fig. 22 width sweep (`w = 3, 5, 7 mm`):
 
 ```powershell
-python -m symmetric_cross_mts.validate_width_sweep
+$env:PYTHONPATH='src'; python -m symmetric_cross_mts.validate_width_sweep
 ```
 
 This writes:
@@ -114,7 +144,7 @@ Diagnose why the current analytical implementation does not yet match the
 published Fig. 15 curve:
 
 ```powershell
-python -m symmetric_cross_mts.diagnose_ecm
+$env:PYTHONPATH='src'; python -m symmetric_cross_mts.diagnose_ecm
 ```
 
 Outputs are written to:
@@ -124,6 +154,7 @@ outputs/geometry.png
 outputs/current_distribution.png
 outputs/s_parameters.png
 outputs/s_parameters.csv
+outputs/run_config.json
 ```
 
 ## Notes

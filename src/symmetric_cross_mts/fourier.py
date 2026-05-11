@@ -34,7 +34,7 @@ def current_fourier(
     y_mm = np.linspace(-params.ly_mm / 2.0, params.ly_mm / 2.0, samples)
     y_m = y_mm * 1e-3
 
-    ix = horizontal_current_x(x_mm)
+    ix = horizontal_current_x(x_mm, params)
     iy = vertical_current_y(y_mm, params)
 
     int_x_current = _trapz_complex(ix * np.exp(1j * kx * x_m), x_m)

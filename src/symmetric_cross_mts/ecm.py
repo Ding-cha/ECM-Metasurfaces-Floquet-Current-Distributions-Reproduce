@@ -109,7 +109,7 @@ def _current_fourier_for_cfg(
 
     from .model import horizontal_current_x, vertical_current_y
 
-    ix = horizontal_current_x(x_mm)
+    ix = horizontal_current_x(x_mm, params)
     iy = vertical_current_y(y_mm, params)
     trapz = getattr(np, "trapezoid", np.trapz)
     jx = trapz(ix * np.exp(1j * kx * x_m), x_m) * _width_integral(ky, params.w_m / 2.0, cfg.width_profile)
