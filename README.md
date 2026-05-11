@@ -96,6 +96,19 @@ To run the raw analytical ECM implementation:
 python -m symmetric_cross_mts.run_ecm --mode raw
 ```
 
+Validate the Fig. 22 width sweep (`w = 3, 5, 7 mm`):
+
+```powershell
+python -m symmetric_cross_mts.validate_width_sweep
+```
+
+This writes:
+
+```text
+outputs/width_sweep_s11.png
+outputs/width_sweep_summary.csv
+```
+
 Diagnose why the current analytical implementation does not yet match the
 published Fig. 15 curve:
 

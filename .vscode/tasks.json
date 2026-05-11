@@ -42,6 +42,13 @@
       "command": "$env:PYTHONPATH='${workspaceFolder}\\src'; D:\\anaconda3\\python.exe -m symmetric_cross_mts.diagnose_ecm",
       "group": "test",
       "problemMatcher": []
+    },
+    {
+      "label": "Validate Fig. 22 width sweep",
+      "type": "shell",
+      "command": "$env:PYTHONPATH='${workspaceFolder}\\src'; D:\\anaconda3\\python.exe -m symmetric_cross_mts.validate_width_sweep",
+      "group": "test",
+      "problemMatcher": []
     }
   ]
 }

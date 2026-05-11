@@ -58,6 +58,17 @@
       "env": {
         "PYTHONPATH": "${workspaceFolder}\\src"
       }
+    },
+    {
+      "name": "Validate Fig. 22 width sweep",
+      "type": "python",
+      "request": "launch",
+      "module": "symmetric_cross_mts.validate_width_sweep",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}\\src"
+      }
     }
   ]
 }
