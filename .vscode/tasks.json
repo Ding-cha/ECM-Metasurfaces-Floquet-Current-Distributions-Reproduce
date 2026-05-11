@@ -1,0 +1,26 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Install editable package",
+      "type": "shell",
+      "command": "D:\\anaconda3\\python.exe -m pip install -e .",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Plot current",
+      "type": "shell",
+      "command": "$env:PYTHONPATH='${workspaceFolder}\\src'; D:\\anaconda3\\python.exe -m symmetric_cross_mts.plot_current",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run ECM sweep",
+      "type": "shell",
+      "command": "$env:PYTHONPATH='${workspaceFolder}\\src'; D:\\anaconda3\\python.exe -m symmetric_cross_mts.run_ecm",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

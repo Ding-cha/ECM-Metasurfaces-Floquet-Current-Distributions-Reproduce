@@ -1,0 +1,10 @@
+{
+  "python.defaultInterpreterPath": "D:\\anaconda3\\python.exe",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}\\src"
+  ],
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.egg-info": true
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Plot symmetric cross current",
+      "type": "python",
+      "request": "launch",
+      "module": "symmetric_cross_mts.plot_current",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}\\src"
+      }
+    },
+    {
+      "name": "Run symmetric cross ECM",
+      "type": "python",
+      "request": "launch",
+      "module": "symmetric_cross_mts.run_ecm",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}\\src"
+      }
+    }
+  ]
+}
