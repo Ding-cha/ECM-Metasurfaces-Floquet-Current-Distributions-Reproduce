@@ -65,6 +65,13 @@ Run the ECM frequency sweep:
 python -m symmetric_cross_mts.run_ecm
 ```
 
+Diagnose why the current analytical implementation does not yet match the
+published Fig. 15 curve:
+
+```powershell
+python -m symmetric_cross_mts.diagnose_ecm
+```
+
 Outputs are written to:
 
 ```text
@@ -81,4 +88,7 @@ uses a normalized current amplitude. It is meant as a reproducible analytical
 starting point for the symmetric-cross unit cell. Small differences from the
 published HFSS overlay can be expected because the paper does not publish all
 implementation details, such as exact metal thickness, loss tangent, modal
-truncation, and numerical normalization choices.
+truncation, numerical normalization choices, the incident-current normalization
+`I0`, and the exact normal-incidence `TE00` limiting procedure. Without those
+normalization details, the raw Fourier-integral `T00` is too small and the model
+mostly reproduces the bare dielectric slab response.

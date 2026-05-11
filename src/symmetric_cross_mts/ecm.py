@@ -23,7 +23,11 @@ class EcmConfig:
 
 def _sqrt_branch(value: complex) -> complex:
     root = np.sqrt(value + 0j)
-    if root.imag < 0:
+    # The paper uses the exp(-j k_z z) convention in the Floquet expansion.
+    # Evanescent modes must therefore have k_z = -j alpha to decay away from
+    # the sheet in the +z direction. NumPy's principal square root returns
+    # +j alpha for negative real arguments, which flips the modal reactance.
+    if abs(root.real) < 1e-14 and root.imag > 0:
         root = -root
     return root
 

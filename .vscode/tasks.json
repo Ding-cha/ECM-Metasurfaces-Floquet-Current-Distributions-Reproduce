@@ -21,6 +21,13 @@
       "command": "$env:PYTHONPATH='${workspaceFolder}\\src'; D:\\anaconda3\\python.exe -m symmetric_cross_mts.run_ecm",
       "group": "test",
       "problemMatcher": []
+    },
+    {
+      "label": "Diagnose ECM mismatch",
+      "type": "shell",
+      "command": "$env:PYTHONPATH='${workspaceFolder}\\src'; D:\\anaconda3\\python.exe -m symmetric_cross_mts.diagnose_ecm",
+      "group": "test",
+      "problemMatcher": []
     }
   ]
 }

@@ -22,6 +22,17 @@
       "env": {
         "PYTHONPATH": "${workspaceFolder}\\src"
       }
+    },
+    {
+      "name": "Diagnose ECM mismatch",
+      "type": "python",
+      "request": "launch",
+      "module": "symmetric_cross_mts.diagnose_ecm",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}\\src"
+      }
     }
   ]
 }
