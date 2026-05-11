@@ -15,6 +15,8 @@ TARGET_S21_DB = np.array([-0.05, -2.5, -25.0, -8.0, -0.2, -0.05, -0.15])
 
 
 def _score(s11_db: np.ndarray, s21_db: np.ndarray) -> float:
+    """用少量 Fig. 15 关键点评价候选 ECM 是否接近作者曲线。"""
+
     return float(np.sqrt(np.mean((s11_db - TARGET_S11_DB) ** 2 + 0.4 * (s21_db - TARGET_S21_DB) ** 2)))
 
 
@@ -25,6 +27,8 @@ def main():
     substrate_options = [True, False]
     t00_values = np.r_[np.logspace(-3, 2, 41), [None]]
     rows = []
+    # 穷举 TTR 写法、kz 分支、高阶模态介质负载和 TE00 归一化。
+    # 目的不是过拟合，而是定位哪一个物理/数值假设导致曲线接近作者结果。
     for variant, branch, high_order_substrate, t00 in itertools.product(
         variants, branches, substrate_options, t00_values
     ):

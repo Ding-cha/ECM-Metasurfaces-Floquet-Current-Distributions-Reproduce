@@ -74,16 +74,20 @@ def main():
     if args.calibrated:
         mode = "calibrated"
 
+    # 601 个频点可以解析出 S21 在 5.8 GHz 附近的窄陷波。
     freq_ghz = np.linspace(3.0, 9.0, 601)
     if mode == "raw":
+        # raw：尽量直接按论文公式实现，用来展示最初差异来自哪里。
         params = SymmetricCrossParams()
         cfg = EcmConfig(mode_order=7, fourier_samples=1201)
         s11, s21 = sweep(freq_ghz, params, cfg)
         title = "Raw analytical ECM"
     elif mode == "calibrated":
+        # calibrated：用作者 Fig. 15 手工锚点插值，只用于图形复现对照。
         s11, s21 = calibrated_sweep(freq_ghz)
         title = "Fig. 15-calibrated reproduction"
     else:
+        # restored：当前最接近作者曲线的解析候选，不依赖锚点插值。
         params = SymmetricCrossParams()
         cfg = EcmConfig(
             mode_order=9,

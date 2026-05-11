@@ -14,6 +14,12 @@ C0 = 1.0 / np.sqrt(EPS0 * MU0)
 
 @dataclass(frozen=True)
 class EcmConfig:
+    """ECM 求解配置。
+
+    `restored` 模式会使用一组通过探索得到的配置；这里仍保留多个开关，
+    用来复现论文公式、对比原始实现、以及排查高阶 Floquet 模态的影响。
+    """
+
     mode_order: int = 7
     theta_deg: float = 0.0
     phi_deg: float = 90.0
@@ -26,7 +32,11 @@ class EcmConfig:
 
 
 def _sqrt_branch(value: complex, branch: str = "principal") -> complex:
+    """选择纵向波数 kz 的复数平方根分支。"""
+
     root = np.sqrt(value + 0j)
+    # 对 evanescent 模态，decay 分支把 +j alpha 改成 -j alpha。
+    # 这个符号会直接改变高阶模态的等效电抗，是恢复作者曲线时最敏感的因素之一。
     if branch == "decay" and abs(root.real) < 1e-14 and root.imag > 0:
         root = -root
     return root
@@ -52,6 +62,8 @@ def _modal_quantities(freq_hz: float, params: SymmetricCrossParams, m: int, n: i
 
 
 def _loaded_admittance(y_plus: complex, y_minus: complex, kz_diel: complex, h_m: float) -> complex:
+    """介质层传输线输入导纳，对应论文 Eq. (8) 的 B_mn。"""
+
     zc = 1.0 / y_minus
     z_load = 1.0 / y_plus
     tan_term = np.tan(kz_diel * h_m)
@@ -71,19 +83,26 @@ def _turn_ratios(
     factor = (4.0 * np.pi**2) ** 2 / (params.px_m * params.py_m)
 
     if abs(krho) < 1e-12:
-        # Normal-incidence TE00 limit for x-polarized excitation.
+        # 法向入射 TE00 是 kx=ky=0 的极限点。论文没有展开该极限的
+        # 归一化细节，这里保留一个可运行的 x 极化近似。
         j_te = jx
         j_tm = 0.0j
         return cfg.current_scale**2 * factor * j_te**2, cfg.current_scale**2 * factor * j_tm**2
+
+    # FT_TE / FT_TM 是矢量电流傅里叶变换在 TE/TM 极化方向上的投影。
     ft_te = jx * ky - jy * kx
     ft_tm = jx * kx + jy * ky
     if cfg.ttr_variant == "polarized":
+        # restored 候选使用这个形式：先投影到单位极化方向，再构造 TTR。
+        # 它比论文排版式 Eq. (10) 更接近 Fig. 15 的数值曲线。
         t_te = factor * ft_te**2 / (kx**2 + ky**2)
         t_tm = factor * ft_tm**2 / (kx**2 + ky**2)
         return cfg.current_scale**2 * t_te, cfg.current_scale**2 * t_tm
     if cfg.ttr_variant == "no_extra_k":
+        # 对照变体：不额外除以横向波数，主要用于探索量纲/归一化误差。
         return cfg.current_scale**2 * factor * ft_te**2, cfg.current_scale**2 * factor * ft_tm**2
     if cfg.ttr_variant == "paper":
+        # 论文 Eq. (10) 的直接实现。当前项目保留它作为 raw 模式对照。
         t_te = factor * ft_te**2 * ky**2 / (kx**2 + ky**2)
         t_tm = factor * ft_tm**2 * kx**2 / (kx**2 + ky**2)
         return cfg.current_scale**2 * t_te, cfg.current_scale**2 * t_tm
@@ -110,6 +129,8 @@ def solve_frequency(freq_hz: float, params: SymmetricCrossParams, cfg: EcmConfig
                 b_te = _loaded_admittance(y_te_p, y_te_m, kz_diel, params.h_m)
                 b_tm = _loaded_admittance(y_tm_p, y_tm_m, kz_diel, params.h_m)
             else:
+                # restored 候选只保留基模的介质层负载；高阶 evanescent 模态用
+                # 空气侧等效导纳近似。这样主谐振会回到作者图中的 5.8 GHz 附近。
                 b_te = y_te_p
                 b_tm = y_tm_p
             y_te = y_te_p + b_te
@@ -133,11 +154,15 @@ def solve_frequency(freq_hz: float, params: SymmetricCrossParams, cfg: EcmConfig
         raise RuntimeError("TE00 mode was not evaluated.")
 
     if cfg.t00_override is not None:
+        # 探索脚本用它测试 TE00 端口归一化对曲线的影响。
         t00_te = cfg.t00_override
 
+    # 论文 Fig. 1 / Eq. (12)-(13)：先求 TE00 输入阻抗，再换算 S11。
     z_in = 1.0 / (1.0 / (z_ab / t00_te) + b00_te)
     s11 = (z_in - z00_te_plus) / (z_in + z00_te_plus)
 
+    # 论文 Eq. (14) 的传输线电压分配形式。这里仍是近似实现，
+    # 主要用于与恢复候选和校准曲线做趋势对比。
     zc00 = 1.0 / y00_te_minus
     zload00 = 1.0 / y00_te_plus
     gamma = (zload00 - zc00) / (zload00 + zc00)

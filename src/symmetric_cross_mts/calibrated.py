@@ -3,6 +3,8 @@ from __future__ import annotations
 import numpy as np
 
 
+# 下面的锚点来自作者 Fig. 15 的手工读数。它们不是新的物理模型，
+# 只用于和 restored/raw 解析结果做可视化对照。
 S11_FREQ_GHZ = np.array([3.0, 3.7, 4.5, 5.1, 5.55, 5.85, 6.2, 6.8, 7.4, 7.85, 8.4, 9.0])
 S11_DB = np.array([-11.0, -8.5, -5.2, -2.4, -0.6, -0.1, -2.2, -11.0, -19.5, -24.0, -19.0, -14.0])
 S11_PHASE_DEG = np.array([-105.0, -112.0, -124.0, -145.0, -175.0, -205.0, -225.0, -242.0, -248.0, -236.0, -145.0, -122.0])
@@ -23,6 +25,7 @@ def _catmull_rom_interp(x: np.ndarray, xp: np.ndarray, fp: np.ndarray) -> np.nda
     y = np.interp(x, xp, fp)
     interior = (x > xp[0]) & (x < xp[-1])
     for idx in np.where(interior)[0]:
+        # Catmull-Rom 样条只依赖相邻四个锚点，不需要引入 SciPy。
         value = x[idx]
         i = int(np.searchsorted(xp, value) - 1)
         i = max(0, min(i, len(xp) - 2))
@@ -42,6 +45,8 @@ def _catmull_rom_interp(x: np.ndarray, xp: np.ndarray, fp: np.ndarray) -> np.nda
 
 
 def _complex_from_db_phase(mag_db: np.ndarray, phase_deg: np.ndarray) -> np.ndarray:
+    """把 dB 幅度和角度相位重新组合成复数 S 参数。"""
+
     magnitude = 10.0 ** (mag_db / 20.0)
     phase = np.deg2rad(phase_deg)
     return magnitude * np.exp(1j * phase)
