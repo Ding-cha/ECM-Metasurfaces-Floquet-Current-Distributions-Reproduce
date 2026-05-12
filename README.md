@@ -167,6 +167,27 @@ outputs/width_sweep_s11.png
 outputs/width_sweep_summary.csv
 ```
 
+Run the small batch sweep for `lx = ly = 20..25 mm`, `w = 3, 4, 5 mm`, and
+`h = 1, 2, 3 mm`:
+
+```powershell
+$env:PYTHONPATH='src'; python -m symmetric_cross_mts.batch_sweep --output-dir outputs\batch_lx_w_h_test
+```
+
+For a faster smoke test, reduce frequency samples:
+
+```powershell
+$env:PYTHONPATH='src'; python -m symmetric_cross_mts.batch_sweep --freq-points 61 --fourier-samples 201 --output-dir outputs\batch_lx_w_h_test
+```
+
+The batch run writes:
+
+```text
+outputs/batch_lx_w_h_test/batch_config.json
+outputs/batch_lx_w_h_test/summary.csv
+outputs/batch_lx_w_h_test/cases/*.csv
+```
+
 Diagnose why the current analytical implementation does not yet match the
 published Fig. 15 curve:
 
