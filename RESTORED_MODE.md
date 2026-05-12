@@ -63,6 +63,80 @@ w <= min(l_x, l_y)
 
 如果同时给出 JSON 和命令行参数，命令行参数优先。
 
+## restored 自动基板策略
+
+`restored` 模式现在包含一个自动基板策略：
+
+```text
+--restored-profile auto
+```
+
+程序用下面的量判断是否属于电厚基板：
+
+```text
+tau = h_mm * sqrt(epsilon_r)
+```
+
+当：
+
+```text
+tau < 4.0
+```
+
+使用原先为论文 Fig. 15 调整出的薄基板设置：
+
+```text
+mode_order = 9
+high_order_substrate = False
+width_profile = "cosine"
+```
+
+当：
+
+```text
+tau >= 4.0
+```
+
+使用更适合厚基板或高介电常数基板的设置：
+
+```text
+mode_order = 3
+high_order_substrate = True
+width_profile = "uniform"
+epsilon_eff_scale = clamp(1.03 - 0.04 * h_mm, 0.88, 0.97)
+arm_length_correction_mm = 0.5
+```
+
+原因是厚基板 / 高介电常数基板中，高阶 evanescent Floquet 模态看到的介质层输入导纳不再能简单近似为空气侧导纳；继续使用薄基板 restored 假设会把透射陷波和反射谷推到错误频率。对于 `h = 3 mm, epsilon_r = 4.4` 的 HFSS 对照，完整介质负载会明显更接近仿真中的 4.6 GHz 透射陷波和 5.6-5.8 GHz 反射谷。
+
+厚基板 profile 还默认使用有效介电常数：
+
+```text
+epsilon_eff = 1 + epsilon_eff_scale * (epsilon_r - 1)
+```
+
+其中厚基板 profile 默认使用随厚度变化的经验值：
+
+```text
+epsilon_eff_scale = clamp(1.03 - 0.04 * h_mm, 0.88, 0.97)
+```
+
+这个经验修正表示表面电流附近的场并不是完全填充在介质内部。若直接用 bulk `epsilon_r = 4.4` 加载所有模态，程序会把透射陷波算到偏低频；使用有效介电常数后，陷波位置更接近 HFSS 图中的 4.5-4.6 GHz。
+
+`arm_length_correction_mm = 0.5` 只用于电流傅里叶积分：实际输入的几何长度、周期和基板参数不变，但用于电流积分的 `l_x`、`l_y` 会各缩短 0.5 mm。这个修正来自 `h = 2 mm, epsilon_r = 4.4, l_x = l_y = 20..25 mm` 的 HFSS 扫参：不修正时，长度越大，程序的 S21 陷波越偏低频；加入 0.5 mm 有效长度修正后，陷波频率能落回 HFSS 的 0.1 GHz 采样网格附近。
+
+若要关闭这些经验修正，可显式设置：
+
+```cmd
+set PYTHONPATH=src && D:\anaconda3\python.exe -m symmetric_cross_mts.run_ecm --mode restored --restored-profile substrate --epsilon-eff-scale 1 --arm-length-correction-mm 0 --params-json examples\symmetric_cross_case.json
+```
+
+也可以手动指定：
+
+```cmd
+set PYTHONPATH=src && D:\anaconda3\python.exe -m symmetric_cross_mts.run_ecm --mode restored --restored-profile substrate --params-json examples\symmetric_cross_case.json
+```
+
 ## 几何参数
 
 使用论文 Fig. 13 / Table II 的 symmetric cross MTS unit cell 参数：

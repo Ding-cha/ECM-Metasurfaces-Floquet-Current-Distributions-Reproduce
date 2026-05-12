@@ -62,12 +62,16 @@ def write_run_config(
 ) -> None:
     payload = {
         "mode": mode,
+        "restored_profile": args.restored_profile,
         "frequency_ghz": {
             "start": args.freq_start_ghz,
             "stop": args.freq_stop_ghz,
             "points": args.freq_points,
         },
         "geometry": None if params is None else params.as_dict(),
+        "electrical_thickness_mm_sqrt_eps": None
+        if params is None
+        else params.h_mm * float(np.sqrt(params.epsilon_r)),
         "ecm_config": None if cfg is None else asdict(cfg),
         "source_params_json": None if args.params_json is None else str(Path(args.params_json).resolve()),
     }
@@ -131,18 +135,41 @@ def _build_params(args: argparse.Namespace) -> SymmetricCrossParams:
     return SymmetricCrossParams(**geometry)
 
 
-def _build_cfg(args: argparse.Namespace, mode: str) -> EcmConfig:
-    if mode == "raw":
-        defaults = EcmConfig(mode_order=7, fourier_samples=1201)
-    else:
-        defaults = EcmConfig(
+def _restored_defaults(params: SymmetricCrossParams, profile: str) -> EcmConfig:
+    if profile == "auto":
+        electrical_thickness = params.h_mm * np.sqrt(params.epsilon_r)
+        profile = "substrate" if electrical_thickness >= 4.0 else "thin"
+
+    if profile == "thin":
+        return EcmConfig(
             mode_order=9,
             fourier_samples=501,
             ttr_variant="polarized",
             kz_branch="decay",
             high_order_substrate=False,
             width_profile="cosine",
+            epsilon_eff_scale=1.0,
         )
+    if profile == "substrate":
+        epsilon_eff_scale = float(np.clip(1.03 - 0.04 * params.h_mm, 0.88, 0.97))
+        return EcmConfig(
+            mode_order=3,
+            fourier_samples=501,
+            ttr_variant="polarized",
+            kz_branch="decay",
+            high_order_substrate=True,
+            width_profile="uniform",
+            epsilon_eff_scale=epsilon_eff_scale,
+            arm_length_correction_mm=0.5,
+        )
+    raise ValueError(f"Unknown restored profile: {profile}")
+
+
+def _build_cfg(args: argparse.Namespace, mode: str, params: SymmetricCrossParams) -> EcmConfig:
+    if mode == "raw":
+        defaults = EcmConfig(mode_order=7, fourier_samples=1201)
+    else:
+        defaults = _restored_defaults(params, args.restored_profile)
 
     if args.high_order_substrate == "on":
         high_order_substrate = True
@@ -162,6 +189,10 @@ def _build_cfg(args: argparse.Namespace, mode: str) -> EcmConfig:
         kz_branch=defaults.kz_branch if args.kz_branch is None else args.kz_branch,
         high_order_substrate=high_order_substrate,
         width_profile=defaults.width_profile if args.width_profile is None else args.width_profile,
+        epsilon_eff_scale=defaults.epsilon_eff_scale if args.epsilon_eff_scale is None else args.epsilon_eff_scale,
+        arm_length_correction_mm=defaults.arm_length_correction_mm
+        if args.arm_length_correction_mm is None
+        else args.arm_length_correction_mm,
     )
     if cfg.mode_order < 0:
         raise ValueError("--mode-order must be >= 0")
@@ -171,6 +202,10 @@ def _build_cfg(args: argparse.Namespace, mode: str) -> EcmConfig:
         raise ValueError("--current-scale must be finite")
     if cfg.t00_override is not None and cfg.t00_override == 0.0:
         raise ValueError("--t00-override must be nonzero when supplied")
+    if cfg.epsilon_eff_scale <= 0.0 or cfg.epsilon_eff_scale > 1.0:
+        raise ValueError("--epsilon-eff-scale must be in the interval (0, 1]")
+    if cfg.arm_length_correction_mm < 0.0:
+        raise ValueError("--arm-length-correction-mm must be >= 0")
     return cfg
 
 
@@ -210,6 +245,24 @@ def main():
     parser.add_argument("--kz-branch", choices=["principal", "decay"], default=None)
     parser.add_argument("--width-profile", choices=["uniform", "cosine"], default=None)
     parser.add_argument("--high-order-substrate", choices=["auto", "on", "off"], default="auto")
+    parser.add_argument(
+        "--epsilon-eff-scale",
+        type=float,
+        default=None,
+        help="Use eps_eff = 1 + scale * (epsilon_r - 1) in the substrate modal admittance.",
+    )
+    parser.add_argument(
+        "--arm-length-correction-mm",
+        type=float,
+        default=None,
+        help="Shorten the current-integration arm length without changing the physical period/substrate.",
+    )
+    parser.add_argument(
+        "--restored-profile",
+        choices=["auto", "thin", "substrate"],
+        default="auto",
+        help="Default restored settings. auto uses substrate settings for electrically thicker dielectric slabs.",
+    )
     args = parser.parse_args()
 
     mode = args.mode
@@ -232,7 +285,7 @@ def main():
     if mode == "raw":
         # raw：尽量直接按论文公式实现，用来展示最初差异来自哪里。
         params = _build_params(args)
-        cfg = _build_cfg(args, mode)
+        cfg = _build_cfg(args, mode, params)
         s11, s21 = sweep(freq_ghz, params, cfg)
         title = "Raw analytical ECM"
     elif mode == "calibrated":
@@ -242,7 +295,7 @@ def main():
     else:
         # restored：当前最接近作者曲线的解析候选，不依赖锚点插值。
         params = _build_params(args)
-        cfg = _build_cfg(args, mode)
+        cfg = _build_cfg(args, mode, params)
         s11, s21 = sweep(freq_ghz, params, cfg)
         title = (
             "Restored ECM candidate "

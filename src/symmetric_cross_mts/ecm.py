@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from dataclasses import dataclass
 
 import numpy as np
@@ -30,6 +31,8 @@ class EcmConfig:
     kz_branch: str = "principal"
     high_order_substrate: bool = True
     width_profile: str = "uniform"
+    epsilon_eff_scale: float = 1.0
+    arm_length_correction_mm: float = 0.0
 
 
 def _sqrt_branch(value: complex, branch: str = "principal") -> complex:
@@ -53,12 +56,13 @@ def _modal_quantities(freq_hz: float, params: SymmetricCrossParams, m: int, n: i
     ky = k0 * np.sin(theta) * np.sin(phi) + 2.0 * np.pi * n / params.py_m
 
     kz_air = _sqrt_branch(k0**2 - kx**2 - ky**2, cfg.kz_branch)
-    kz_diel = _sqrt_branch(k0**2 * params.epsilon_r - kx**2 - ky**2, cfg.kz_branch)
+    eps_eff = 1.0 + cfg.epsilon_eff_scale * (params.epsilon_r - 1.0)
+    kz_diel = _sqrt_branch(k0**2 * eps_eff - kx**2 - ky**2, cfg.kz_branch)
 
     y_te_plus = kz_air / (omega * MU0)
     y_tm_plus = omega * EPS0 / kz_air
     y_te_minus = kz_diel / (omega * MU0)
-    y_tm_minus = omega * EPS0 * params.epsilon_r / kz_diel
+    y_tm_minus = omega * EPS0 * eps_eff / kz_diel
     return kx, ky, kz_air, kz_diel, y_te_plus, y_tm_plus, y_te_minus, y_tm_minus
 
 
@@ -99,18 +103,24 @@ def _current_fourier_for_cfg(
     params: SymmetricCrossParams,
     cfg: EcmConfig,
 ) -> tuple[complex, complex]:
-    if cfg.width_profile == "uniform":
-        return current_fourier(kx, ky, params, cfg.fourier_samples)
+    current_params = params
+    if cfg.arm_length_correction_mm:
+        lx_eff = max(params.w_mm, params.lx_mm - cfg.arm_length_correction_mm)
+        ly_eff = max(params.w_mm, params.ly_mm - cfg.arm_length_correction_mm)
+        current_params = replace(params, lx_mm=lx_eff, ly_mm=ly_eff)
 
-    x_mm = np.linspace(-params.lx_mm / 2.0, params.lx_mm / 2.0, cfg.fourier_samples)
+    if cfg.width_profile == "uniform":
+        return current_fourier(kx, ky, current_params, cfg.fourier_samples)
+
+    x_mm = np.linspace(-current_params.lx_mm / 2.0, current_params.lx_mm / 2.0, cfg.fourier_samples)
     x_m = x_mm * 1e-3
-    y_mm = np.linspace(-params.ly_mm / 2.0, params.ly_mm / 2.0, cfg.fourier_samples)
+    y_mm = np.linspace(-current_params.ly_mm / 2.0, current_params.ly_mm / 2.0, cfg.fourier_samples)
     y_m = y_mm * 1e-3
 
     from .model import horizontal_current_x, vertical_current_y
 
-    ix = horizontal_current_x(x_mm, params)
-    iy = vertical_current_y(y_mm, params)
+    ix = horizontal_current_x(x_mm, current_params)
+    iy = vertical_current_y(y_mm, current_params)
     trapz = getattr(np, "trapezoid", np.trapz)
     jx = trapz(ix * np.exp(1j * kx * x_m), x_m) * _width_integral(ky, params.w_m / 2.0, cfg.width_profile)
     jy = _width_integral(kx, params.w_m / 2.0, cfg.width_profile) * trapz(

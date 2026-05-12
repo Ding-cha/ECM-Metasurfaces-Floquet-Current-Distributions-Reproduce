@@ -78,14 +78,34 @@ By default this writes the current restored ECM candidate. This candidate uses:
 ```text
 TTR variant: TE/TM unit-polarization projection
 evanescent branch: decaying branch
-high-order substrate loading: disabled for evanescent modal sum
-width profile: cosine correction
-mode order: 9
+restored profile: auto
 ```
 
-This is the closest fully analytical reconstruction found so far. It naturally
-reproduces the main Fig. 15 features: the reflection peak / transmission null
-near 5.8 GHz and the reflection minimum near 8 GHz.
+The restored `auto` profile selects between two analytical assumptions:
+
+```text
+thin substrate:      mode_order=9, high-order substrate loading off, cosine width profile
+thicker substrate:   mode_order=3, high-order substrate loading on, uniform width profile,
+                     thickness-dependent epsilon_eff_scale,
+                     arm_length_correction_mm=0.5
+```
+
+The threshold is `h_mm * sqrt(epsilon_r) >= 4.0`. This keeps the Fig. 15-style
+thin-substrate behavior while improving agreement for thicker / higher-permittivity
+substrates such as `h=3 mm, epsilon_r=4.4`.
+
+The thick-substrate profile uses:
+
+```text
+epsilon_eff = 1 + epsilon_eff_scale * (epsilon_r - 1)
+epsilon_eff_scale = clamp(1.03 - 0.04 * h_mm, 0.88, 0.97)
+```
+
+This accounts for surface-current fields that are only partly confined inside
+the dielectric. The arm-length correction accounts for the fact that the fitted
+surface-current model overestimates the electrical length in the lx=ly sweep.
+Use `--epsilon-eff-scale 1 --arm-length-correction-mm 0` to recover the earlier
+bulk-permittivity, full-arm current model.
 
 To overlay the digitized anchors:
 
@@ -97,6 +117,13 @@ Run an arbitrary symmetric-cross geometry by passing dimensions in mm:
 
 ```powershell
 $env:PYTHONPATH='src'; python -m symmetric_cross_mts.run_ecm --mode restored --lx-mm 24 --ly-mm 18 --w-mm 4 --px-mm 34 --py-mm 30 --h-mm 1.0 --epsilon-r 2.5 --freq-start-ghz 4 --freq-stop-ghz 10
+```
+
+Force the thick-substrate restored settings when comparing against HFSS cases
+where dielectric loading of high-order modes is important:
+
+```powershell
+$env:PYTHONPATH='src'; python -m symmetric_cross_mts.run_ecm --mode restored --restored-profile substrate --params-json examples\symmetric_cross_case.json
 ```
 
 Or read the geometry from JSON:

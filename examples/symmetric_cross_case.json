@@ -5,7 +5,7 @@
     "w_mm": 3.0,
     "px_mm": 30.0,
     "py_mm": 30.0,
-    "h_mm": 1.524,
-    "epsilon_r": 3.02
+    "h_mm": 2,
+    "epsilon_r": 4.4
   }
 }
